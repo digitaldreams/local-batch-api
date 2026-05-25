@@ -31,13 +31,17 @@ class Batch extends Model
         'errored_count',
         'expires_at',
         'completed_at',
+        'in_progress_at',
+        'cancel_initiated_at',
     ];
 
     protected $casts = [
-        'status'       => BatchStatus::class,
-        'payload'      => 'array',
-        'raw_response' => 'array',
-        'expires_at'   => 'datetime',
-        'completed_at' => 'datetime',
+        'status'              => BatchStatus::class,
+        'payload'             => 'array',
+        'raw_response'        => 'array',
+        'expires_at'          => 'datetime',
+        'completed_at'        => 'datetime',
+        'in_progress_at'      => 'datetime',
+        'cancel_initiated_at' => 'datetime',
     ];
 }

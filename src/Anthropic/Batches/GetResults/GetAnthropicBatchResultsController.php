@@ -5,6 +5,7 @@ namespace BatchApi\Anthropic\Batches\GetResults;
 use BatchApi\Shared\Batch\Models\Batch;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class GetAnthropicBatchResultsController extends Controller
@@ -51,11 +52,16 @@ class GetAnthropicBatchResultsController extends Controller
             'result'    => [
                 'type'    => 'succeeded',
                 'message' => [
-                    'role'    => 'assistant',
-                    'content' => [
+                    'id'            => 'msg_'.Str::replace('-', '', Str::uuid()),
+                    'type'          => 'message',
+                    'role'          => 'assistant',
+                    'model'         => $result['model'] ?? 'unknown',
+                    'content'       => [
                         ['type' => 'text', 'text' => $result['content']],
                     ],
-                    'usage'   => [
+                    'stop_reason'   => $result['stop_reason'] ?? 'end_turn',
+                    'stop_sequence' => null,
+                    'usage'         => [
                         'input_tokens'  => $result['input_tokens'],
                         'output_tokens' => $result['output_tokens'],
                     ],

@@ -8,6 +8,7 @@ enum BatchStatus: string
     case Processing = 'processing';
     case Completed  = 'completed';
     case Failed     = 'failed';
+    case Cancelling = 'cancelling';
     case Cancelled  = 'cancelled';
     case Expired    = 'expired';
 
@@ -15,6 +16,7 @@ enum BatchStatus: string
     {
         return match ($this) {
             self::Pending, self::Processing => 'in_progress',
+            self::Cancelling                => 'canceling',
             default                         => 'ended',
         };
     }
@@ -26,6 +28,7 @@ enum BatchStatus: string
             self::Processing => 'in_progress',
             self::Completed  => 'completed',
             self::Failed     => 'failed',
+            self::Cancelling => 'cancelling',
             self::Cancelled  => 'cancelled',
             self::Expired    => 'expired',
         };
@@ -33,6 +36,6 @@ enum BatchStatus: string
 
     public function isTerminal(): bool
     {
-        return in_array($this, [self::Completed, self::Failed, self::Cancelled, self::Expired]);
+        return in_array($this, [self::Completed, self::Failed, self::Cancelling, self::Cancelled, self::Expired]);
     }
 }

@@ -21,7 +21,10 @@ class CancelOpenAiBatchController extends Controller
             ], 422);
         }
 
-        $batch->update(['status' => BatchStatus::Cancelled]);
+        $batch->update([
+            'status'              => BatchStatus::Cancelling,
+            'cancel_initiated_at' => now(),
+        ]);
 
         return new OpenAiBatchResource($batch->fresh());
     }

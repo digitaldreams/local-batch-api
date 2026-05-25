@@ -1,0 +1,17 @@
+{
+    "name": "digitaldreams/ollama-batch-api",
+    "description": "Drop-in replacement for Anthropic and OpenAI batch APIs, self-hosted against Ollama.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4",
+        "laravel/framework": "^13.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "BatchApi\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

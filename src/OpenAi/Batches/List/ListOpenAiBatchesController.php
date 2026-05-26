@@ -11,7 +11,7 @@ class ListOpenAiBatchesController
 {
     public function index(Request $request): JsonResponse
     {
-        $limit   = min((int) ($request->query('limit', 20)), 100);
+        $limit = min((int) ($request->query('limit', 20)), 100);
         $afterId = $request->query('after');
 
         $query = Batch::where('provider_format', 'openai')->orderByDesc('created_at');
@@ -32,11 +32,11 @@ class ListOpenAiBatchesController
         }
 
         return response()->json([
-            'object'   => 'list',
-            'data'     => OpenAiBatchResource::collection($batches)->resolve(),
+            'object' => 'list',
+            'data' => OpenAiBatchResource::collection($batches)->resolve(),
             'has_more' => $hasMore,
             'first_id' => $batches->first()?->id,
-            'last_id'  => $batches->last()?->id,
+            'last_id' => $batches->last()?->id,
         ]);
     }
 }

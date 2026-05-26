@@ -2,6 +2,8 @@
 
 namespace BatchApi\Shared\Batch\Models;
 
+use Database\Factories\BatchFileFactory;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -26,8 +28,8 @@ class BatchFile extends Model
         'parsed_rows' => 'array',
     ];
 
-    protected static function newFactory(): \Illuminate\Database\Eloquent\Factories\Factory
+    protected static function newFactory(): Factory
     {
-        return \Database\Factories\BatchFileFactory::new();
+        return BatchFileFactory::new();
     }
 }

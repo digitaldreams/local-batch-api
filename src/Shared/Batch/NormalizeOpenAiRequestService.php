@@ -2,25 +2,22 @@
 
 namespace BatchApi\Shared\Batch;
 
+use BatchApi\Data\BatchRequestDto;
+use BatchApi\Data\Input\OpenAiBatchItemDto;
+
 class NormalizeOpenAiRequestService
 {
     /**
-     * @param  string  $jsonl  Raw JSONL content from uploaded file
-     * @return array<int, array{custom_id: string, model: string|null, max_tokens: int|null, messages: array<int, array{role: string, content: string}>}>
+     * @param  OpenAiBatchItemDto[]  $items
+     * @return BatchRequestDto[]
      */
-    public function normalize(string $jsonl): array
+    public function normalize(array $items): array
     {
-        $rows = array_filter(array_map('trim', explode("\n", $jsonl)));
-
-        return array_values(array_map(function (string $line): array {
-            $row = json_decode($line, true);
-
-            return [
-                'custom_id'  => $row['custom_id'],
-                'model'      => $row['body']['model'] ?? null,
-                'max_tokens' => $row['body']['max_tokens'] ?? null,
-                'messages'   => $row['body']['messages'],
-            ];
-        }, $rows));
+        return array_map(fn (OpenAiBatchItemDto $item) => new BatchRequestDto(
+            customId: $item->customId,
+            messages: $item->messages,
+            maxTokens: $item->maxTokens ?? 2048,
+            model: $item->model,
+        ), $items);
     }
 }

@@ -11,9 +11,9 @@ class ListAnthropicBatchesController
 {
     public function index(Request $request): JsonResponse
     {
-        $limit    = min((int) ($request->query('limit', 20)), 100);
+        $limit = min((int) ($request->query('limit', 20)), 100);
         $beforeId = $request->query('before_id');
-        $afterId  = $request->query('after_id');
+        $afterId = $request->query('after_id');
 
         $query = Batch::where('provider_format', 'anthropic')->orderByDesc('created_at');
 
@@ -40,10 +40,10 @@ class ListAnthropicBatchesController
         }
 
         return response()->json([
-            'data'     => AnthropicBatchResource::collection($batches)->resolve(),
+            'data' => AnthropicBatchResource::collection($batches)->resolve(),
             'has_more' => $hasMore,
             'first_id' => $batches->first()?->id,
-            'last_id'  => $batches->last()?->id,
+            'last_id' => $batches->last()?->id,
         ]);
     }
 }

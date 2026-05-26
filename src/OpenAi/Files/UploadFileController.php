@@ -13,22 +13,22 @@ class UploadFileController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'file'    => ['required', 'file'],
+            'file' => ['required', 'file'],
             'purpose' => ['required', 'string', 'in:batch'],
         ]);
 
         $content = $request->file('file')->get();
 
         $file = BatchFile::create([
-            'id'      => 'file-'.Str::uuid(),
+            'id' => 'file-'.Str::uuid(),
             'purpose' => $request->input('purpose'),
             'content' => $content,
         ]);
 
         return response()->json([
-            'id'         => $file->id,
-            'object'     => 'file',
-            'purpose'    => $file->purpose,
+            'id' => $file->id,
+            'object' => 'file',
+            'purpose' => $file->purpose,
             'created_at' => $file->created_at->timestamp,
         ], 201);
     }

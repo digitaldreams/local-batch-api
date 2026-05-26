@@ -2,32 +2,22 @@
 
 namespace BatchApi\Anthropic\Batches\SubmitBatch;
 
-use BatchApi\Shared\Batch\Enums\BatchStatus;
-use BatchApi\Shared\Batch\Models\Batch;
-use BatchApi\Shared\Batch\NormalizeAnthropicRequestService;
-use BatchApi\Shared\Batch\ProcessBatchJob;
+use BatchApi\BatchService;
+use BatchApi\Data\Input\AnthropicBatchItemDto;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
 class SubmitAnthropicBatchController extends Controller
 {
-    public function __construct(
-        private readonly NormalizeAnthropicRequestService $normalizer
-    ) {}
+    public function __construct(private readonly BatchService $batchService) {}
 
-    public function store(SubmitAnthropicBatchRequest $request): JsonResponse
+    public function store(Request $request): JsonResponse
     {
-        $payload = $this->normalizer->normalize($request->validated('requests'));
+        $request->validate(['requests' => ['required', 'array', 'min:1']]);
 
-        $batch = Batch::create([
-            'provider_format' => 'anthropic',
-            'status'          => BatchStatus::Pending,
-            'payload'         => $payload,
-            'request_count'   => count($payload),
-            'expires_at'      => now()->addHours(24),
-        ]);
-
-        ProcessBatchJob::dispatch($batch->id);
+        $items = AnthropicBatchItemDto::fromCollection($request->input('requests'));
+        $batch = $this->batchService->submitAnthropicBatch($items);
 
         return (new AnthropicBatchResource($batch))
             ->response()

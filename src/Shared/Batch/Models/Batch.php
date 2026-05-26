@@ -3,7 +3,9 @@
 namespace BatchApi\Shared\Batch\Models;
 
 use BatchApi\Shared\Batch\Enums\BatchStatus;
+use Database\Factories\BatchFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -12,9 +14,9 @@ class Batch extends Model
     use HasFactory;
     use HasUuids;
 
-    protected static function newFactory(): \Illuminate\Database\Eloquent\Factories\Factory
+    protected static function newFactory(): Factory
     {
-        return \Database\Factories\BatchFactory::new();
+        return BatchFactory::new();
     }
 
     protected $table = 'batches';
@@ -36,12 +38,12 @@ class Batch extends Model
     ];
 
     protected $casts = [
-        'status'              => BatchStatus::class,
-        'payload'             => 'array',
-        'raw_response'        => 'array',
-        'expires_at'          => 'datetime',
-        'completed_at'        => 'datetime',
-        'in_progress_at'      => 'datetime',
+        'status' => BatchStatus::class,
+        'payload' => 'array',
+        'raw_response' => 'array',
+        'expires_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'in_progress_at' => 'datetime',
         'cancel_initiated_at' => 'datetime',
     ];
 }

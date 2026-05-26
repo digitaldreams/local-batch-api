@@ -2,34 +2,35 @@
 
 namespace BatchApi\Shared\Batch;
 
+use BatchApi\Data\BatchRequestDto;
+use BatchApi\Data\Input\AnthropicBatchItemDto;
+
 class NormalizeAnthropicRequestService
 {
     /**
-     * @param  array<int, array{custom_id: string, params: array{model?: string, max_tokens?: int, system?: string, messages: array<int, array{role: string, content: string|array<int, array{type: string, text?: string}>}>}}>  $requests
-     * @return array<int, array{custom_id: string, model: string|null, max_tokens: int|null, system: string|null, messages: array<int, array{role: string, content: string}>}>
+     * @param  AnthropicBatchItemDto[]  $items
+     * @return BatchRequestDto[]
      */
-    public function normalize(array $requests): array
+    public function normalize(array $items): array
     {
-        return array_map(fn (array $req) => [
-            'custom_id'  => $req['custom_id'],
-            'model'      => $req['params']['model'] ?? null,
-            'max_tokens' => $req['params']['max_tokens'] ?? null,
-            'system'     => isset($req['params']['system'])
-                ? $this->flattenContent($req['params']['system'])
-                : null,
-            'messages'   => array_map(
+        return array_map(fn (AnthropicBatchItemDto $item) => new BatchRequestDto(
+            customId: $item->customId,
+            messages: array_map(
                 fn (array $msg) => [
-                    'role'    => $msg['role'],
+                    'role' => $msg['role'],
                     'content' => $this->flattenContent($msg['content']),
                 ],
-                $req['params']['messages']
+                $item->messages
             ),
-        ], $requests);
+            maxTokens: $item->maxTokens,
+            model: $item->model,
+            system: $item->system !== null ? $this->flattenContent($item->system) : null,
+        ), $items);
     }
 
     /**
      * Anthropic content is string OR array of content blocks.
-     * Ollama only accepts string — extract text blocks and join.
+     * Inference backends only accept string — extract text blocks and join.
      *
      * @param  string|array<int, array{type: string, text?: string}>  $content
      */

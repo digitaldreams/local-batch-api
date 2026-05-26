@@ -2,10 +2,10 @@
 
 namespace BatchApi\Anthropic\Batches\GetResults;
 
+use BatchApi\Data\BatchResultDto;
 use BatchApi\Shared\Batch\Models\Batch;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class GetAnthropicBatchResultsController extends Controller
@@ -16,57 +16,17 @@ class GetAnthropicBatchResultsController extends Controller
             return response('', 204);
         }
 
-        return response()->stream(function () use ($batch): void {
-            foreach ($batch->raw_response as $result) {
-                echo json_encode($this->formatResult($result))."\n";
+        $results = array_map(fn ($r) => BatchResultDto::fromArray($r), $batch->raw_response);
+
+        return response()->stream(function () use ($results): void {
+            foreach ($results as $result) {
+                echo json_encode($result->toAnthropicNdjson())."\n";
                 ob_flush();
                 flush();
             }
         }, 200, [
-            'Content-Type'      => 'application/x-ndjson',
+            'Content-Type' => 'application/x-ndjson',
             'X-Accel-Buffering' => 'no',
         ]);
-    }
-
-    /**
-     * @param  array{custom_id: string, succeeded: bool, content: string|null, input_tokens: int, output_tokens: int, error: string|null}  $result
-     * @return array<string, mixed>
-     */
-    private function formatResult(array $result): array
-    {
-        if (! $result['succeeded']) {
-            return [
-                'custom_id' => $result['custom_id'],
-                'result'    => [
-                    'type'  => 'errored',
-                    'error' => [
-                        'type'    => 'server_error',
-                        'message' => $result['error'],
-                    ],
-                ],
-            ];
-        }
-
-        return [
-            'custom_id' => $result['custom_id'],
-            'result'    => [
-                'type'    => 'succeeded',
-                'message' => [
-                    'id'            => 'msg_'.Str::replace('-', '', Str::uuid()),
-                    'type'          => 'message',
-                    'role'          => 'assistant',
-                    'model'         => $result['model'] ?? 'unknown',
-                    'content'       => [
-                        ['type' => 'text', 'text' => $result['content']],
-                    ],
-                    'stop_reason'   => $result['stop_reason'] ?? 'end_turn',
-                    'stop_sequence' => null,
-                    'usage'         => [
-                        'input_tokens'  => $result['input_tokens'],
-                        'output_tokens' => $result['output_tokens'],
-                    ],
-                ],
-            ],
-        ];
     }
 }

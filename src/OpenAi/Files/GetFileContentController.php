@@ -15,15 +15,15 @@ class GetFileContentController extends Controller
             return response('', 204);
         }
 
-        $content  = $batchFile->content;
+        $content = $batchFile->content;
         $filename = "{$batchFile->id}.jsonl";
 
         return response()->stream(function () use ($content): void {
             echo $content;
         }, 200, [
-            'Content-Type'        => 'application/x-ndjson',
+            'Content-Type' => 'application/x-ndjson',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            'X-Accel-Buffering'   => 'no',
+            'X-Accel-Buffering' => 'no',
         ]);
     }
 }

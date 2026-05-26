@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Ollama Batch API",
-    "description": "Drop-in replacement for Anthropic and OpenAI Batch APIs, running against local Ollama.",
+    "name": "Local Batch API",
+    "description": "Drop-in replacement for Anthropic and OpenAI Batch APIs, running against local Ollama or LM Studio.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [

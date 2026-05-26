@@ -1,5 +1,5 @@
 {
-    "name": "digitaldreams/ollama-batch-api",
+    "name": "digitaldreams/local-batch-api",
     "description": "Drop-in replacement for Anthropic and OpenAI batch APIs, self-hosted against Ollama or LM Studio.",
     "type": "library",
     "license": "MIT",

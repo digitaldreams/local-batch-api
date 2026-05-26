@@ -3,13 +3,13 @@
 namespace BatchApi\Listeners;
 
 use BatchApi\BatchService;
-use BatchApi\Events\SubmitOpenAiBatch;
+use BatchApi\Events\SubmitOpenAiBatchEvent;
 
-class HandleSubmitOpenAiBatch
+class HandleSubmitOpenAiBatchListener
 {
     public function __construct(private readonly BatchService $service) {}
 
-    public function handle(SubmitOpenAiBatch $event): void
+    public function handle(SubmitOpenAiBatchEvent $event): void
     {
         $this->service->submitOpenAiBatch($event->inputFileId, $event->items);
     }

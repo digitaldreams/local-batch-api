@@ -2,7 +2,7 @@
 
 namespace BatchApi\Events;
 
-final class CancelBatch
+final class CancelBatchEvent
 {
     public function __construct(public readonly string $batchId) {}
 }

@@ -3,13 +3,13 @@
 namespace BatchApi\Listeners;
 
 use BatchApi\BatchService;
-use BatchApi\Events\CancelBatch;
+use BatchApi\Events\CancelBatchEvent;
 
-class HandleCancelBatch
+class HandleCancelBatchListener
 {
     public function __construct(private readonly BatchService $service) {}
 
-    public function handle(CancelBatch $event): void
+    public function handle(CancelBatchEvent $event): void
     {
         $this->service->cancelBatch($event->batchId);
     }

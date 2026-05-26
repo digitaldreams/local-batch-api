@@ -5,7 +5,7 @@ namespace BatchApi\Events;
 use BatchApi\Data\BatchResultDto;
 use BatchApi\Shared\Batch\Models\Batch;
 
-final class BatchCompleted
+final class BatchCompletedEvent
 {
     /** @param BatchResultDto[] $results */
     public function __construct(

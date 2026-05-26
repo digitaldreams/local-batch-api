@@ -4,7 +4,7 @@ namespace BatchApi\Events;
 
 use BatchApi\Data\Input\OpenAiBatchItemDto;
 
-final class SubmitOpenAiBatch
+final class SubmitOpenAiBatchEvent
 {
     /** @param OpenAiBatchItemDto[] $items */
     public function __construct(

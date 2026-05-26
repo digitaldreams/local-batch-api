@@ -6,7 +6,7 @@ use BatchApi\Data\Input\AnthropicBatchItemDto;
 use BatchApi\Data\Input\OpenAiBatchItemDto;
 use BatchApi\Shared\Batch\Models\Batch;
 
-final class BatchCreated
+final class BatchCreatedEvent
 {
     /** @param AnthropicBatchItemDto[]|OpenAiBatchItemDto[] $items */
     public function __construct(

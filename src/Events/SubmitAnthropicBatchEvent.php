@@ -4,7 +4,7 @@ namespace BatchApi\Events;
 
 use BatchApi\Data\Input\AnthropicBatchItemDto;
 
-final class SubmitAnthropicBatch
+final class SubmitAnthropicBatchEvent
 {
     /** @param AnthropicBatchItemDto[] $items */
     public function __construct(public readonly array $items)

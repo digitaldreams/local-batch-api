@@ -2,8 +2,8 @@
 
 namespace BatchApi\Shared\Batch\Models;
 
+use BatchApi\Database\Factories\BatchFactory;
 use BatchApi\Shared\Batch\Enums\BatchStatus;
-use Database\Factories\BatchFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

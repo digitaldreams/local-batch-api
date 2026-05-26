@@ -2,13 +2,12 @@
 
 namespace BatchApi\Events;
 
-use BatchApi\Data\BatchResultDto;
 use BatchApi\Shared\Batch\Models\Batch;
 
-final class BatchItemCompleted
+final class BatchFailedEvent
 {
     public function __construct(
         public readonly Batch $batch,
-        public readonly BatchResultDto $result,
+        public readonly \Throwable $exception,
     ) {}
 }

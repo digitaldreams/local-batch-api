@@ -2,7 +2,7 @@
 
 namespace BatchApi\Shared\Batch\Models;
 
-use Database\Factories\BatchFileFactory;
+use BatchApi\Database\Factories\BatchFileFactory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;

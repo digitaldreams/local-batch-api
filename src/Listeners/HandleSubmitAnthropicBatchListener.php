@@ -3,13 +3,13 @@
 namespace BatchApi\Listeners;
 
 use BatchApi\BatchService;
-use BatchApi\Events\SubmitAnthropicBatch;
+use BatchApi\Events\SubmitAnthropicBatchEvent;
 
-class HandleSubmitAnthropicBatch
+class HandleSubmitAnthropicBatchListener
 {
     public function __construct(private readonly BatchService $service) {}
 
-    public function handle(SubmitAnthropicBatch $event): void
+    public function handle(SubmitAnthropicBatchEvent $event): void
     {
         $this->service->submitAnthropicBatch($event->items);
     }

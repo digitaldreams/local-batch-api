@@ -5,8 +5,8 @@ namespace BatchApi;
 use BatchApi\Data\BatchResultDto;
 use BatchApi\Data\Input\AnthropicBatchItemDto;
 use BatchApi\Data\Input\OpenAiBatchItemDto;
-use BatchApi\Events\BatchCancelled;
-use BatchApi\Events\BatchCreated;
+use BatchApi\Events\BatchCancelledEvent;
+use BatchApi\Events\BatchCreatedEvent;
 use BatchApi\Shared\Batch\Enums\BatchStatus;
 use BatchApi\Shared\Batch\Models\Batch;
 use BatchApi\Shared\Batch\Models\BatchFile;
@@ -40,7 +40,7 @@ class BatchService
 
         ProcessBatchJob::dispatch($batch->id);
 
-        event(new BatchCreated($batch, $items, 'anthropic'));
+        event(new BatchCreatedEvent($batch, $items, 'anthropic'));
 
         return $batch;
     }
@@ -63,7 +63,7 @@ class BatchService
 
         ProcessBatchJob::dispatch($batch->id);
 
-        event(new BatchCreated($batch, $items, 'openai'));
+        event(new BatchCreatedEvent($batch, $items, 'openai'));
 
         return $batch;
     }
@@ -98,7 +98,7 @@ class BatchService
 
         $fresh = $batch->fresh();
 
-        event(new BatchCancelled($fresh));
+        event(new BatchCancelledEvent($fresh));
 
         return $fresh;
     }

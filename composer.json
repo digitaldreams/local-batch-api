@@ -20,6 +20,16 @@
             }
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/",
+            "BatchApi\\Database\\Factories\\": "database/factories/"
+        }
+    },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "require-dev": {
+        "orchestra/testbench": "^11.1",
+        "phpunit/phpunit": "^13.1"
+    }
 }

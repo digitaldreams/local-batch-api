@@ -2,13 +2,13 @@
 
 namespace BatchApi;
 
-use BatchApi\Events\CancelBatch;
-use BatchApi\Events\SubmitAnthropicBatch;
-use BatchApi\Events\SubmitOpenAiBatch;
+use BatchApi\Events\CancelBatchEvent;
+use BatchApi\Events\SubmitAnthropicBatchEvent;
+use BatchApi\Events\SubmitOpenAiBatchEvent;
 use BatchApi\Facades\BatchApi;
-use BatchApi\Listeners\HandleCancelBatch;
-use BatchApi\Listeners\HandleSubmitAnthropicBatch;
-use BatchApi\Listeners\HandleSubmitOpenAiBatch;
+use BatchApi\Listeners\HandleCancelBatchListener;
+use BatchApi\Listeners\HandleSubmitAnthropicBatchListener;
+use BatchApi\Listeners\HandleSubmitOpenAiBatchListener;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -27,9 +27,9 @@ class BatchApiServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__.'/Shared/database/migrations');
 
-        Event::listen(SubmitAnthropicBatch::class, HandleSubmitAnthropicBatch::class);
-        Event::listen(SubmitOpenAiBatch::class, HandleSubmitOpenAiBatch::class);
-        Event::listen(CancelBatch::class, HandleCancelBatch::class);
+        Event::listen(SubmitAnthropicBatchEvent::class, HandleSubmitAnthropicBatchListener::class);
+        Event::listen(SubmitOpenAiBatchEvent::class, HandleSubmitOpenAiBatchListener::class);
+        Event::listen(CancelBatchEvent::class, HandleCancelBatchListener::class);
 
         if (config('inference.expose_routes', false)) {
             BatchApi::routes();

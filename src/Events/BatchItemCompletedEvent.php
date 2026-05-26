@@ -2,13 +2,13 @@
 
 namespace BatchApi\Events;
 
-use BatchApi\Data\BatchRequestDto;
+use BatchApi\Data\BatchResultDto;
 use BatchApi\Shared\Batch\Models\Batch;
 
-final class BatchItemStarted
+final class BatchItemCompletedEvent
 {
     public function __construct(
         public readonly Batch $batch,
-        public readonly BatchRequestDto $item,
+        public readonly BatchResultDto $result,
     ) {}
 }

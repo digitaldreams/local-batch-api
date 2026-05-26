@@ -1,15 +1,6 @@
 # local-batch-api
 
-Drop-in replacement for the **Anthropic** and **OpenAI** batch APIs — self-hosted, running against local [Ollama](https://ollama.ai) or [LM Studio](https://lmstudio.ai). Point your existing SDK code at this server instead of the real APIs. No API keys, no cloud costs, no rate limits.
-
----
-
-## How It Works
-
-1. You POST a batch of prompts (same format as Anthropic/OpenAI).
-2. The package stores the batch in your database and dispatches a queued job.
-3. The job calls Ollama or LM Studio sequentially (or concurrently) for each request.
-4. You poll for status, then fetch results in the same format the real API would return.
+Drop-in replacement for the **Anthropic** and **OpenAI** batch APIs — self-hosted, running against local [Ollama](https://ollama.ai) or [LM Studio](https://lmstudio.ai). No API keys, no cloud costs, no rate limits.
 
 ---
 
@@ -17,103 +8,253 @@ Drop-in replacement for the **Anthropic** and **OpenAI** batch APIs — self-hos
 
 - PHP 8.4+
 - Laravel 13+
-- A running [Ollama](https://ollama.ai/download) instance **or** LM Studio with its local server enabled
+- Running [Ollama](https://ollama.ai/download) or [LM Studio](https://lmstudio.ai) instance
 - A queue worker (`php artisan queue:work`)
 
 ---
 
 ## Installation
 
+### Step 1 — Install the package
+
 ```bash
 composer require digitaldreams/local-batch-api
 ```
 
-Laravel auto-discovers the service provider. Run migrations:
+### Step 2 — Run migrations
 
 ```bash
 php artisan migrate
 ```
 
----
+This creates two tables: `batches` and `batch_files`.
 
-## Configuration
+### Step 3 — Configure your inference backend
 
-Publish the config (optional — env vars work without publishing):
-
-```bash
-php artisan vendor:publish --tag=inference-config
-```
-
-Key `.env` variables:
+Add to your `.env`:
 
 ```env
-# Which backend to use: 'ollama' (default) or 'lmstudio'
+# 'ollama' (default) or 'lmstudio'
 INFERENCE_PROVIDER=ollama
 
-# Base URL of the inference server
+# Base URL of your local inference server
 INFERENCE_URL=http://localhost:11434   # Ollama default
 # INFERENCE_URL=http://localhost:1234  # LM Studio default
 
-# Default model (overridable per request)
+# Default model (can be overridden per request)
 INFERENCE_MODEL=llama3.2
 
-# Seconds before a single request is considered timed out
+# Seconds before a single request times out
 INFERENCE_TIMEOUT=120
 
-# How many requests to fire in parallel per batch chunk
-# CPU-only: keep at 1. GPU with VRAM headroom: raise to 3–5.
+# Parallel requests per batch chunk — keep at 1 for CPU, raise to 3-5 for GPU
 INFERENCE_CONCURRENCY=1
-
-# Set to true to auto-register the HTTP routes
-BATCH_API_EXPOSE_ROUTES=true
 ```
 
-> **Route registration**: routes are off by default. Either set `BATCH_API_EXPOSE_ROUTES=true` or call `BatchApi::routes()` in your `RouteServiceProvider`.
+### Step 4 — Start a queue worker
 
----
-
-## Quickstart
-
-### 1. Start Ollama and pull a model
-
-```bash
-ollama pull llama3.2
-ollama serve          # starts on http://localhost:11434
-```
-
-### 2. Start a queue worker
+Batch jobs run asynchronously. The worker must be running:
 
 ```bash
 php artisan queue:work
 ```
 
-### 3. Start your Laravel app
+---
+
+## Two Ways to Use This Package
+
+This package supports two independent usage patterns:
+
+| | Event-based | REST API |
+|---|---|---|
+| **Who calls it** | Your own Laravel code | Any HTTP client (SDK, curl, external app) |
+| **Auth** | Laravel's existing auth | Sanctum token (or your middleware) |
+| **Routes needed** | No | Yes |
+| **Best for** | Internal pipelines, jobs, commands | Replacing Anthropic/OpenAI SDK endpoints |
+
+---
+
+## Approach 1 — Event-based (Internal Usage)
+
+Use this when your own Laravel application needs to submit and process batches. No HTTP routes required.
+
+### Submitting an Anthropic-format batch
+
+Fire a `SubmitAnthropicBatchEvent` event. The package listener picks it up and dispatches the processing job automatically.
+
+```php
+use BatchApi\Events\SubmitAnthropicBatchEvent;
+use BatchApi\Data\Input\AnthropicBatchItemDto;
+
+$items = [
+    new AnthropicBatchItemDto(
+        customId: 'req-1',
+        maxTokens: 512,
+        messages: [
+            ['role' => 'user', 'content' => 'Summarise this article in one paragraph.'],
+        ],
+    ),
+    new AnthropicBatchItemDto(
+        customId: 'req-2',
+        maxTokens: 256,
+        messages: [
+            ['role' => 'user', 'content' => 'What is the capital of France?'],
+        ],
+        system: 'You are a geography expert.',
+    ),
+];
+
+event(new SubmitAnthropicBatchEvent($items));
+```
+
+### Submitting an OpenAI-format batch
+
+The OpenAI flow requires a file ID. Upload first using the `BatchService`, then fire the event.
+
+```php
+use BatchApi\BatchService;
+use BatchApi\Events\SubmitOpenAiBatchEvent;
+use BatchApi\Data\Input\OpenAiBatchItemDto;
+
+$service = app(BatchService::class);
+
+// Build items from raw JSONL or manually
+$items = [
+    new OpenAiBatchItemDto(
+        customId: 'req-1',
+        messages: [['role' => 'user', 'content' => 'Hello']],
+        maxTokens: 512,
+    ),
+];
+
+// Create a file record (mirrors OpenAI's file upload step)
+$file = $service->uploadFile(
+    collect($items)->map(fn ($item) => json_encode([
+        'custom_id' => $item->customId,
+        'method' => 'POST',
+        'url' => '/v1/chat/completions',
+        'body' => ['messages' => $item->messages, 'max_tokens' => $item->maxTokens],
+    ]))->implode("\n")
+);
+
+event(new SubmitOpenAiBatchEvent($file->id, $items));
+```
+
+### Listening for results
+
+Listen to `BatchCompletedEvent` to act on results when processing finishes:
+
+```php
+// app/Listeners/HandleBatchCompletedListener.php
+
+use BatchApi\Events\BatchCompletedEvent;
+use BatchApi\Data\BatchResultDto;
+
+class HandleBatchCompletedListener
+{
+    public function handle(BatchCompletedEvent $event): void
+    {
+        $batch = $event->batch;
+
+        foreach ($event->results as $result) {
+            /** @var BatchResultDto $result */
+            if ($result->succeeded) {
+                // $result->customId   — matches your request's custom_id
+                // $result->content    — the model's response text
+                // $result->model      — model used
+                // $result->inputTokens / $result->outputTokens
+            } else {
+                // $result->error — failure message
+            }
+        }
+    }
+}
+```
+
+Register it in `AppServiceProvider::boot()`:
+
+```php
+// app/Providers/AppServiceProvider.php
+
+use BatchApi\Events\BatchCompletedEvent;
+use App\Listeners\HandleBatchCompletedListener;
+use Illuminate\Support\Facades\Event;
+
+public function boot(): void
+{
+    Event::listen(BatchCompletedEvent::class, HandleBatchCompletedListener::class);
+}
+```
+
+### All available events
+
+| Event | Properties | Fired when |
+|-------|-----------|------------|
+| `BatchCreatedEvent` | `$batch`, `$items`, `$provider` | Batch record saved, job dispatched |
+| `BatchProcessingEvent` | `$batch` | Queue worker picks up the job |
+| `BatchItemStartedEvent` | `$batch`, `$dto` | Single request about to fire |
+| `BatchItemCompletedEvent` | `$batch`, `$result` | Single request finished |
+| `BatchCompletedEvent` | `$batch`, `$results` | All requests done |
+| `BatchFailedEvent` | `$batch`, `$exception` | Job threw an unrecoverable error |
+| `BatchCancelledEvent` | `$batch` | Batch cancelled |
+
+---
+
+## Approach 2 — REST API (External HTTP Clients)
+
+Use this when you want to **point an existing Anthropic or OpenAI SDK** at your local server instead of the cloud. The API surface is identical to the real APIs.
+
+### Step 1 — Register routes with authentication
+
+Do **not** set `BATCH_API_EXPOSE_ROUTES=true`. Instead, register routes manually inside a protected middleware group so you control authentication.
+
+Install Sanctum if you haven't already:
 
 ```bash
-php artisan serve     # http://localhost:8000
+composer require laravel/sanctum
+php artisan install:api
+```
+
+In your `routes/api.php` (or a service provider), wrap `BatchApi::routes()` with Sanctum middleware:
+
+```php
+use BatchApi\Facades\BatchApi;
+
+Route::middleware('auth:sanctum')->group(function () {
+    BatchApi::routes();
+});
+```
+
+This registers all 11 endpoints, each requiring a valid Sanctum token.
+
+> **Note:** `BatchApi::routes()` also applies the `api` middleware internally. Wrapping it with `auth:sanctum` stacks both, so your routes have `api` + `auth:sanctum`.
+
+### Step 2 — Issue a token
+
+```php
+// In a controller or seeder
+$token = $user->createToken('batch-api-client')->plainTextToken;
+// Pass this token to the HTTP client
+```
+
+### Step 3 — Call the API
+
+All requests need the token in the `Authorization` header:
+
+```
+Authorization: Bearer <token>
 ```
 
 ---
 
-## API Reference
+### Anthropic Batch API — Step by Step
 
-Both APIs share the same lifecycle:
-
-```
-Submit batch → Poll status → Fetch results
-```
-
----
-
-### Anthropic Batch API
-
-Mirrors the [Anthropic Message Batches API](https://docs.anthropic.com/en/api/creating-message-batches).
-
-#### Submit a batch
+#### 1. Submit a batch
 
 ```http
 POST /api/anthropic/v1/messages/batches
 Content-Type: application/json
+Authorization: Bearer <token>
 ```
 
 ```json
@@ -160,51 +301,42 @@ Response `202 Accepted`:
 }
 ```
 
-#### Poll status
+#### 2. Poll until done
 
 ```http
 GET /api/anthropic/v1/messages/batches/{id}
+Authorization: Bearer <token>
 ```
 
 Keep polling until `processing_status` is `"ended"`.
 
-#### Get results (NDJSON stream)
+#### 3. Fetch results (NDJSON)
 
 ```http
 GET /api/anthropic/v1/messages/batches/{id}/results
 Accept: application/x-ndjson
+Authorization: Bearer <token>
 ```
 
-Returns `204` if not ready yet. When ready, streams one JSON object per line:
+Returns `204 No Content` if still processing. When ready, streams one JSON object per line:
 
 ```jsonl
 {"custom_id":"req-1","result":{"type":"succeeded","message":{"id":"msg_abc","type":"message","role":"assistant","model":"llama3.2","content":[{"type":"text","text":"Hello! Great to meet you."}],"stop_reason":"end_turn","usage":{"input_tokens":12,"output_tokens":10}}}}
 {"custom_id":"req-2","result":{"type":"errored","error":{"type":"server_error","message":"Ollama timeout"}}}
 ```
 
-#### List batches
+#### Other Anthropic endpoints
 
 ```http
-GET /api/anthropic/v1/messages/batches?limit=20
-GET /api/anthropic/v1/messages/batches?limit=20&before_id={id}
-GET /api/anthropic/v1/messages/batches?limit=20&after_id={id}
+GET  /api/anthropic/v1/messages/batches              # list (supports ?limit=&before_id=&after_id=)
+POST /api/anthropic/v1/messages/batches/{id}/cancel  # cancel
 ```
-
-#### Cancel a batch
-
-```http
-POST /api/anthropic/v1/messages/batches/{id}/cancel
-```
-
-Returns `processing_status: "canceling"` immediately. Returns `422` if batch already ended.
 
 ---
 
-### OpenAI Batch API
+### OpenAI Batch API — Step by Step
 
-Mirrors the [OpenAI Batch API](https://platform.openai.com/docs/guides/batch). Uses a two-step upload-then-submit flow.
-
-#### Step 1 — Upload a JSONL file
+#### 1. Upload a JSONL file
 
 Create a `.jsonl` file (one request per line):
 
@@ -218,6 +350,7 @@ Upload it:
 ```http
 POST /api/openai/v1/files
 Content-Type: multipart/form-data
+Authorization: Bearer <token>
 
 file=@requests.jsonl
 purpose=batch
@@ -234,11 +367,12 @@ Response `201 Created`:
 }
 ```
 
-#### Step 2 — Submit the batch
+#### 2. Submit the batch
 
 ```http
 POST /api/openai/v1/batches
 Content-Type: application/json
+Authorization: Bearer <token>
 ```
 
 ```json
@@ -262,18 +396,20 @@ Response `201 Created`:
 }
 ```
 
-#### Poll status
+#### 3. Poll until completed
 
 ```http
 GET /api/openai/v1/batches/{id}
+Authorization: Bearer <token>
 ```
 
 Poll until `status` is `"completed"`. Note the `output_file_id` in the response.
 
-#### Download results
+#### 4. Download results
 
 ```http
 GET /api/openai/v1/files/{output_file_id}/content
+Authorization: Bearer <token>
 ```
 
 Returns JSONL, one result per line:
@@ -282,17 +418,39 @@ Returns JSONL, one result per line:
 {"id":"batch_req_abc","custom_id":"req-1","response":{"status_code":200,"body":{"id":"chatcmpl-123","object":"chat.completion","model":"llama3.2","choices":[{"index":0,"message":{"role":"assistant","content":"Hello! How can I help?"},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":8,"total_tokens":18}}},"error":null}
 ```
 
-#### List batches
+#### Other OpenAI endpoints
 
 ```http
-GET /api/openai/v1/batches?limit=20
-GET /api/openai/v1/batches?limit=20&after={id}
+GET  /api/openai/v1/batches                  # list (supports ?limit=&after=)
+POST /api/openai/v1/batches/{id}/cancel      # cancel
 ```
 
-#### Cancel a batch
+---
 
-```http
-POST /api/openai/v1/batches/{id}/cancel
+### Pointing an existing SDK at this server
+
+**Python (Anthropic SDK):**
+
+```python
+import anthropic
+
+client = anthropic.Anthropic(
+    api_key="any-value",           # required by SDK but not validated here
+    base_url="http://localhost:8000/api/anthropic",
+    default_headers={"Authorization": "Bearer <token>"},
+)
+```
+
+**Python (OpenAI SDK):**
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="any-value",
+    base_url="http://localhost:8000/api/openai",
+    default_headers={"Authorization": "Bearer <token>"},
+)
 ```
 
 ---
@@ -305,93 +463,23 @@ pending → processing → completed
        → cancelling  → cancelled
 ```
 
-| Internal status | Anthropic `processing_status` | OpenAI `status`  |
-|-----------------|-------------------------------|------------------|
-| `pending`       | `in_progress`                 | `validating`     |
-| `processing`    | `in_progress`                 | `in_progress`    |
-| `completed`     | `ended`                       | `completed`      |
-| `failed`        | `ended`                       | `failed`         |
-| `cancelling`    | `canceling`                   | `cancelling`     |
-| `cancelled`     | `ended`                       | `cancelled`      |
+| Internal | Anthropic `processing_status` | OpenAI `status` |
+|----------|-------------------------------|-----------------|
+| `pending` | `in_progress` | `validating` |
+| `processing` | `in_progress` | `in_progress` |
+| `completed` | `ended` | `completed` |
+| `failed` | `ended` | `failed` |
+| `cancelling` | `canceling` | `cancelling` |
+| `cancelled` | `ended` | `cancelled` |
 
 Batches expire after 24 hours.
-
----
-
-## Events
-
-Listen to these Laravel events to hook into the batch lifecycle:
-
-| Event | Fired when |
-|-------|-----------|
-| `BatchApi\Events\BatchCreated` | Batch submitted |
-| `BatchApi\Events\BatchProcessing` | Job picks up the batch |
-| `BatchApi\Events\BatchItemStarted` | Single request starts |
-| `BatchApi\Events\BatchItemCompleted` | Single request finishes |
-| `BatchApi\Events\BatchCompleted` | All requests done |
-| `BatchApi\Events\BatchFailed` | Job threw an exception |
-| `BatchApi\Events\BatchCancelled` | Batch cancelled |
-
-Example listener:
-
-```php
-use BatchApi\Events\BatchCompleted;
-
-class NotifyWhenBatchDone
-{
-    public function handle(BatchCompleted $event): void
-    {
-        $batch = $event->batch;
-        $results = $event->results; // BatchResultDto[]
-
-        foreach ($results as $result) {
-            if ($result->succeeded) {
-                // $result->content, $result->inputTokens, $result->outputTokens
-            } else {
-                // $result->error
-            }
-        }
-    }
-}
-```
-
-Register it in `EventServiceProvider`:
-
-```php
-protected $listen = [
-    \BatchApi\Events\BatchCompleted::class => [
-        \App\Listeners\NotifyWhenBatchDone::class,
-    ],
-];
-```
-
----
-
-## Concurrency Tuning
-
-The `INFERENCE_CONCURRENCY` env var controls how many Ollama/LM Studio requests fire in parallel per batch.
-
-| Hardware | Recommended value |
-|----------|------------------|
-| CPU-only (no discrete GPU) | `1` |
-| GPU with spare VRAM | `3`–`5` |
-
-Setting concurrency > 1 uses Laravel's `Http::pool()` to fire requests simultaneously.
-
----
-
-## Using the Postman Collection
-
-Import `Ollama-Batch-API.postman_collection.json` into Postman. Set the `baseUrl` variable to `http://localhost:8000`.
-
-The collection auto-saves batch IDs and file IDs between requests so you can run the folder top-to-bottom without manually copying values.
 
 ---
 
 ## Switching to LM Studio
 
 1. Open LM Studio → start the local server (default port `1234`)
-2. Load a model in LM Studio
+2. Load a model
 3. Update `.env`:
 
 ```env
@@ -400,23 +488,38 @@ INFERENCE_URL=http://localhost:1234
 INFERENCE_MODEL=your-model-name
 ```
 
-No other changes needed. The LM Studio adapter uses the OpenAI-compatible `/v1/chat/completions` endpoint.
+No other changes needed.
+
+---
+
+## Concurrency Tuning
+
+`INFERENCE_CONCURRENCY` controls parallel requests per batch chunk.
+
+| Hardware | Value |
+|----------|-------|
+| CPU-only | `1` |
+| GPU with spare VRAM | `3`–`5` |
+
+---
+
+## Postman Collection
+
+Import `Local-Batch-API.postman_collection.json`. Set the `baseUrl` variable to your server URL. The collection auto-saves batch IDs and file IDs between requests so you can run folders top-to-bottom without manually copying values.
 
 ---
 
 ## Troubleshooting
 
-**Batches stay `pending` forever**
-Queue worker is not running. Start it: `php artisan queue:work`
+**Batches stay `pending` forever** — Queue worker not running. Run `php artisan queue:work`.
 
-**`Ollama timeout` errors in results**
-Model is slow or `INFERENCE_TIMEOUT` is too low. Increase it: `INFERENCE_TIMEOUT=300`
+**`Ollama timeout` in results** — Model is slow or `INFERENCE_TIMEOUT` too low. Raise to `300`.
 
-**Routes return 404**
-`BATCH_API_EXPOSE_ROUTES` is not `true`. Add it to `.env` and clear config cache: `php artisan config:clear`
+**Routes return 404** — Routes not registered. Either set `BATCH_API_EXPOSE_ROUTES=true` (no auth) or call `BatchApi::routes()` manually in a middleware group.
 
-**`ollama: command not found` / connection refused**
-Ollama is not running. Run `ollama serve` in a separate terminal.
+**401 Unauthorized on API routes** — Sanctum token missing or invalid. Pass `Authorization: Bearer <token>` header.
+
+**`cannot chdir` git error in submodule** — Run `git submodule update --init` in the parent repo.
 
 ---
 

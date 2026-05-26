@@ -3,11 +3,11 @@
 namespace BatchApi\Shared\Batch;
 
 use BatchApi\Data\BatchRequestDto;
-use BatchApi\Events\BatchCompleted;
-use BatchApi\Events\BatchFailed;
-use BatchApi\Events\BatchItemCompleted;
-use BatchApi\Events\BatchItemStarted;
-use BatchApi\Events\BatchProcessing;
+use BatchApi\Events\BatchCompletedEvent;
+use BatchApi\Events\BatchFailedEvent;
+use BatchApi\Events\BatchItemCompletedEvent;
+use BatchApi\Events\BatchItemStartedEvent;
+use BatchApi\Events\BatchProcessingEvent;
 use BatchApi\Inference\InferenceAdapterFactory;
 use BatchApi\Shared\Batch\Enums\BatchStatus;
 use BatchApi\Shared\Batch\Models\Batch;
@@ -51,7 +51,7 @@ class ProcessBatchJob implements ShouldQueue
             'in_progress_at' => now(),
         ]);
 
-        event(new BatchProcessing($batch->fresh()));
+        event(new BatchProcessingEvent($batch->fresh()));
 
         $adapter = InferenceAdapterFactory::make();
         $concurrency = max(1, (int) config('inference.concurrency', 1));
@@ -60,15 +60,15 @@ class ProcessBatchJob implements ShouldQueue
 
         if ($concurrency === 1) {
             foreach ($dtos as $dto) {
-                event(new BatchItemStarted($batch, $dto));
+                event(new BatchItemStartedEvent($batch, $dto));
                 $result = $adapter->chat($dto);
                 $results[] = $result;
-                event(new BatchItemCompleted($batch, $result));
+                event(new BatchItemCompletedEvent($batch, $result));
             }
         } else {
             foreach (array_chunk($dtos, $concurrency) as $chunk) {
                 foreach ($chunk as $dto) {
-                    event(new BatchItemStarted($batch, $dto));
+                    event(new BatchItemStartedEvent($batch, $dto));
                 }
 
                 $responses = Http::pool(function (Pool $pool) use ($chunk, $adapter): void {
@@ -80,7 +80,7 @@ class ProcessBatchJob implements ShouldQueue
                 foreach ($chunk as $dto) {
                     $result = $adapter->parsePoolResponse($responses[$dto->customId] ?? null, $dto);
                     $results[] = $result;
-                    event(new BatchItemCompleted($batch, $result));
+                    event(new BatchItemCompletedEvent($batch, $result));
                 }
             }
         }
@@ -107,7 +107,7 @@ class ProcessBatchJob implements ShouldQueue
 
         $batch->update($updates);
 
-        event(new BatchCompleted($batch->fresh(), $results));
+        event(new BatchCompletedEvent($batch->fresh(), $results));
     }
 
     public function failed(\Throwable $e): void
@@ -116,7 +116,7 @@ class ProcessBatchJob implements ShouldQueue
 
         if ($batch) {
             $batch->update(['status' => BatchStatus::Failed]);
-            event(new BatchFailed($batch->fresh(), $e));
+            event(new BatchFailedEvent($batch->fresh(), $e));
         }
     }
 }

@@ -8,6 +8,7 @@ return [
     'timeout' => env('INFERENCE_TIMEOUT', 120),
     'job_timeout' => env('INFERENCE_JOB_TIMEOUT', 600), // ProcessBatchJob queue timeout; raise for slow CPU boxes
     'concurrency' => env('INFERENCE_CONCURRENCY', 1),
+    'queue' => env('BATCH_API_QUEUE', 'local-batch'), // ProcessBatchJob runs on this named queue
     // Persistence off = inference-only: no migrations, no batch listeners, no routes.
     // Host using only InferenceAdapterFactory keeps this false to avoid the batches table.
     'persistence' => env('BATCH_API_PERSISTENCE', false),

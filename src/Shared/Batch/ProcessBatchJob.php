@@ -29,6 +29,7 @@ class ProcessBatchJob implements ShouldQueue
     public function __construct(private readonly string $batchId)
     {
         $this->timeout = (int) config('inference.job_timeout', 600);
+        $this->onQueue(config('inference.queue', 'local-batch'));
     }
 
     public function handle(): void

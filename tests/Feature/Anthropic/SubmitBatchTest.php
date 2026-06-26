@@ -74,6 +74,15 @@ class SubmitBatchTest extends TestCase
         Queue::assertPushed(ProcessBatchJob::class);
     }
 
+    public function test_dispatches_job_on_local_batch_queue(): void
+    {
+        Queue::fake();
+
+        $this->postJson('/api/anthropic/v1/messages/batches', $this->validPayload());
+
+        Queue::assertPushed(ProcessBatchJob::class, fn ($job) => $job->queue === 'local-batch');
+    }
+
     public function test_validates_required_fields(): void
     {
         $response = $this->postJson('/api/anthropic/v1/messages/batches', []);

@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('batch_files', function (Blueprint $table): void {
+        Schema::create('local_batch_api_batch_files', function (Blueprint $table): void {
             $table->string('id')->primary();
             $table->string('purpose');
             $table->longText('content');
@@ -19,6 +19,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('batch_files');
+        Schema::dropIfExists('local_batch_api_batch_files');
     }
 };

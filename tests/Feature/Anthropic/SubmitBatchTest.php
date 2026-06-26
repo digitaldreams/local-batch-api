@@ -58,7 +58,7 @@ class SubmitBatchTest extends TestCase
 
         $this->postJson('/api/anthropic/v1/messages/batches', $this->validPayload());
 
-        $this->assertDatabaseHas('batches', [
+        $this->assertDatabaseHas('local_batch_api_batches', [
             'provider_format' => 'anthropic',
             'status' => BatchStatus::Pending->value,
             'request_count' => 1,
@@ -165,7 +165,7 @@ class SubmitBatchTest extends TestCase
 
         $this->postJson('/api/anthropic/v1/messages/batches', $payload);
 
-        $this->assertDatabaseHas('batches', ['request_count' => 3]);
+        $this->assertDatabaseHas('local_batch_api_batches', ['request_count' => 3]);
     }
 
     public function test_fires_batch_created_event(): void

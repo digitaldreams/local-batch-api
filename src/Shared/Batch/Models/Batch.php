@@ -19,7 +19,7 @@ class Batch extends Model
         return BatchFactory::new();
     }
 
-    protected $table = 'batches';
+    protected $table = 'local_batch_api_batches';
 
     protected $fillable = [
         'provider_format',

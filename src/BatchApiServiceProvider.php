@@ -25,7 +25,14 @@ class BatchApiServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        $this->loadMigrationsFrom(__DIR__.'/Shared/database/migrations');
+        // Inference-only by default: skip migrations, batch listeners and routes unless
+        // persistence is enabled. Lets a host consume InferenceAdapterFactory without the
+        // batches table colliding with its own schema.
+        if (! config('inference.persistence', false)) {
+            return;
+        }
+
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
         Event::listen(SubmitAnthropicBatchEvent::class, HandleSubmitAnthropicBatchListener::class);
         Event::listen(SubmitOpenAiBatchEvent::class, HandleSubmitOpenAiBatchListener::class);

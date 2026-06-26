@@ -44,7 +44,7 @@ class SubmitBatchTest extends TestCase
             'completion_window' => '24h',
         ]);
 
-        $this->assertDatabaseHas('batches', [
+        $this->assertDatabaseHas('local_batch_api_batches', [
             'provider_format' => 'openai',
             'status' => BatchStatus::Pending->value,
             'input_file_id' => $file->id,

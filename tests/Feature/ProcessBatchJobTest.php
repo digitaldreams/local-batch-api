@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use BatchApi\Events\BatchCancelledEvent;
 use BatchApi\Events\BatchCompletedEvent;
 use BatchApi\Events\BatchFailedEvent;
 use BatchApi\Events\BatchItemCompletedEvent;
@@ -58,7 +57,7 @@ class ProcessBatchJobTest extends TestCase
         $batch = $this->pendingBatch();
         (new ProcessBatchJob($batch->id))->handle();
 
-        $this->assertDatabaseHas('batches', [
+        $this->assertDatabaseHas('local_batch_api_batches', [
             'id' => $batch->id,
             'status' => BatchStatus::Completed->value,
             'succeeded_count' => 1,
@@ -130,7 +129,7 @@ class ProcessBatchJobTest extends TestCase
         $batch = $this->pendingBatch();
         (new ProcessBatchJob($batch->id))->handle();
 
-        $this->assertDatabaseHas('batches', [
+        $this->assertDatabaseHas('local_batch_api_batches', [
             'id' => $batch->id,
             'status' => BatchStatus::Completed->value,
             'succeeded_count' => 0,
@@ -153,9 +152,27 @@ class ProcessBatchJobTest extends TestCase
 
         (new ProcessBatchJob($batch->id))->handle();
 
-        $this->assertDatabaseHas('batches', ['id' => $batch->id, 'status' => BatchStatus::Completed->value]);
+        $this->assertDatabaseHas('local_batch_api_batches', ['id' => $batch->id, 'status' => BatchStatus::Completed->value]);
         Event::assertNotDispatched(BatchProcessingEvent::class);
         Http::assertNothingSent();
+    }
+
+    public function test_resumes_batch_stuck_in_processing_on_retry(): void
+    {
+        Event::fake();
+        Http::fake(['*' => Http::response($this->ollamaSuccess())]);
+
+        $batch = $this->pendingBatch();
+        $batch->update(['status' => BatchStatus::Processing, 'in_progress_at' => now()]);
+
+        (new ProcessBatchJob($batch->id))->handle();
+
+        $this->assertDatabaseHas('local_batch_api_batches', [
+            'id' => $batch->id,
+            'status' => BatchStatus::Completed->value,
+            'succeeded_count' => 1,
+            'errored_count' => 0,
+        ]);
     }
 
     public function test_cancelling_batch_is_marked_cancelled_without_hitting_ollama(): void
@@ -173,7 +190,7 @@ class ProcessBatchJobTest extends TestCase
 
         (new ProcessBatchJob($batch->id))->handle();
 
-        $this->assertDatabaseHas('batches', ['id' => $batch->id, 'status' => BatchStatus::Cancelled->value]);
+        $this->assertDatabaseHas('local_batch_api_batches', ['id' => $batch->id, 'status' => BatchStatus::Cancelled->value]);
         Event::assertNotDispatched(BatchProcessingEvent::class);
         Http::assertNothingSent();
     }
@@ -186,7 +203,7 @@ class ProcessBatchJobTest extends TestCase
 
         (new ProcessBatchJob($batch->id))->failed(new \RuntimeException('Queue exploded'));
 
-        $this->assertDatabaseHas('batches', ['id' => $batch->id, 'status' => BatchStatus::Failed->value]);
+        $this->assertDatabaseHas('local_batch_api_batches', ['id' => $batch->id, 'status' => BatchStatus::Failed->value]);
         Event::assertDispatched(BatchFailedEvent::class, fn ($e) => $e->batch->id === $batch->id);
     }
 
@@ -209,7 +226,7 @@ class ProcessBatchJobTest extends TestCase
         $batch->refresh();
         $this->assertNotNull($batch->output_file_id);
         $this->assertStringStartsWith('file-', $batch->output_file_id);
-        $this->assertDatabaseHas('batch_files', ['id' => $batch->output_file_id, 'purpose' => 'batch_output']);
+        $this->assertDatabaseHas('local_batch_api_batch_files', ['id' => $batch->output_file_id, 'purpose' => 'batch_output']);
     }
 
     public function test_gracefully_handles_missing_batch(): void

@@ -2,6 +2,7 @@
 
 namespace BatchApi\Facades;
 
+use BatchApi\Middleware\VerifyBatchApiSecret;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Route;
 
@@ -14,7 +15,7 @@ class BatchApi extends Facade
 
     public static function routes(): void
     {
-        Route::middleware('api')
+        Route::middleware(['api', VerifyBatchApiSecret::class])
             ->prefix('api')
             ->group(__DIR__.'/../routes/api.php');
     }

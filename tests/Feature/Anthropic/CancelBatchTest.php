@@ -21,7 +21,7 @@ class CancelBatchTest extends TestCase
             ->assertOk()
             ->assertJsonPath('processing_status', 'ended');
 
-        $this->assertDatabaseHas('batches', [
+        $this->assertDatabaseHas('local_batch_api_batches', [
             'id' => $batch->id,
             'status' => BatchStatus::Cancelled->value,
         ]);
@@ -51,7 +51,7 @@ class CancelBatchTest extends TestCase
             ->assertOk()
             ->assertJsonPath('processing_status', 'canceling');
 
-        $this->assertDatabaseHas('batches', [
+        $this->assertDatabaseHas('local_batch_api_batches', [
             'id' => $batch->id,
             'status' => BatchStatus::Cancelling->value,
         ]);

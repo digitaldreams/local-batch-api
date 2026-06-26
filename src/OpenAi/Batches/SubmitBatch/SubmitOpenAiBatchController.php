@@ -16,7 +16,7 @@ class SubmitOpenAiBatchController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'input_file_id' => ['required', 'string', 'exists:batch_files,id'],
+            'input_file_id' => ['required', 'string', 'exists:local_batch_api_batch_files,id'],
             'endpoint' => ['required', 'string'],
             'completion_window' => ['required', 'string'],
         ]);

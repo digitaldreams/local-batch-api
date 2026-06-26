@@ -22,11 +22,14 @@ class ProcessBatchJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $timeout = 600;
+    public int $timeout;
 
     public int $tries = 2;
 
-    public function __construct(private readonly string $batchId) {}
+    public function __construct(private readonly string $batchId)
+    {
+        $this->timeout = (int) config('inference.job_timeout', 600);
+    }
 
     public function handle(): void
     {
@@ -42,7 +45,11 @@ class ProcessBatchJob implements ShouldQueue
             return;
         }
 
-        if ($batch->status !== BatchStatus::Pending) {
+        // Allow Processing to re-enter: a job killed mid-run (e.g. timeout on a slow box)
+        // leaves status=Processing. Without this, the retry would no-op and the batch
+        // would be stuck in Processing forever. Re-running is idempotent — results are
+        // recomputed from payload and overwritten.
+        if (! in_array($batch->status, [BatchStatus::Pending, BatchStatus::Processing], true)) {
             return;
         }
 

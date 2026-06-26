@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('batches', function (Blueprint $table): void {
+        Schema::create('local_batch_api_batches', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->string('provider_format');
             $table->string('status')->default('pending');
@@ -27,6 +27,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('batches');
+        Schema::dropIfExists('local_batch_api_batches');
     }
 };

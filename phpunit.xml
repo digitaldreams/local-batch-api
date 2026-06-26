@@ -23,6 +23,7 @@
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="BATCH_API_PERSISTENCE" value="true"/>
         <env name="BATCH_API_EXPOSE_ROUTES" value="true"/>
     </php>
 </phpunit>

@@ -11,7 +11,7 @@ class BatchFile extends Model
 {
     use HasFactory;
 
-    protected $table = 'batch_files';
+    protected $table = 'local_batch_api_batch_files';
 
     public $incrementing = false;
 
